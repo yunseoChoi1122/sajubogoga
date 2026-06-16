@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오늘의 사주 뽑기 🔮</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"></script>
+  <!-- secret.js 로드 없음 → 오버레이에서 직접 입력 -->
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { background:#0a0515; height:100%; display:flex; justify-content:center; align-items:center; font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; }
+    #app { width:640px; height:700px; display:flex; flex-direction:column; background:#0d0720; border:1px solid #3a1f6e; border-radius:16px; overflow:hidden; box-shadow:0 0 40px rgba(120,50,220,0.3); }
+    #header { background:#130a30; padding:16px 20px; border-bottom:1px solid #2a1550; display:flex; align-items:center; gap:10px; }
+    #header .avatar { font-size:28px; }
+    #header .info h2 { color:#e2c9ff; font-size:16px; font-weight:700; }
+    #header .info p  { color:#8a6aaa; font-size:11px; margin-top:2px; }
+    #header .badge   { margin-left:auto; background:#3a1f6e; color:#c9a0ff; font-size:10px; padding:4px 10px; border-radius:20px; }
+    #chat { flex:1; overflow-y:auto; padding:20px 16px; display:flex; flex-direction:column; gap:14px; }
+    #chat::-webkit-scrollbar { width:4px; }
+    #chat::-webkit-scrollbar-thumb { background:#3a1f6e; border-radius:4px; }
+    .msg-row { display:flex; align-items:flex-end; gap:8px; }
+    .msg-row.user { flex-direction:row-reverse; }
+    .bubble-avatar { font-size:22px; flex-shrink:0; }
+    .bubble { max-width:78%; padding:12px 16px; border-radius:18px; font-size:13px; line-height:1.6; word-break:keep-all; }
+    .bot  .bubble { background:#1e0e45; color:#ddd0f5; border-bottom-left-radius:4px; border:1px solid #3a1f6e; }
+    .user .bubble { background:#5b21b6; color:#fff; border-bottom-right-radius:4px; }
+    .time { font-size:10px; color:#5a4070; margin-bottom:4px; }
+    .typing .bubble { background:#1e0e45; border:1px solid #3a1f6e; padding:14px 18px; }
+    .dot { display:inline-block; width:7px; height:7px; background:#9b59b6; border-radius:50%; margin:0 2px; animation:bounce 1.2s infinite; }
+    .dot:nth-child(2){animation-delay:.2s} .dot:nth-child(3){animation-delay:.4s}
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-7px)} }
+    #input-area { background:#130a30; border-top:1px solid #2a1550; padding:14px 16px; display:flex; gap:10px; align-items:center; }
+    #user-input { flex:1; background:#1e0e45; border:1px solid #3a1f6e; border-radius:24px; padding:11px 18px; color:#e2c9ff; font-size:13px; outline:none; font-family:inherit; }
+    #user-input::placeholder { color:#5a4070; }
+    #send-btn { background:#7c3aed; border:none; border-radius:50%; width:42px; height:42px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; transition:background .2s; flex-shrink:0; color:white; }
+    #send-btn:hover { background:#9b59b6; }
+    #send-btn:disabled { background:#3a1f6e; cursor:default; }
+    .result-card { background:#1a0e38; border:1px solid #4a2580; border-radius:14px; padding:16px; margin-top:4px; }
+    .result-card .headline { color:#ffd700; font-size:13px; font-weight:700; margin-bottom:10px; text-align:center; }
+    .fortune-item { margin-bottom:10px; }
+    .fortune-item .label { color:#c9a0ff; font-size:11px; font-weight:700; margin-bottom:3px; }
+    .fortune-item .content { color:#ddd0f5; font-size:12px; line-height:1.6; }
+    .badges { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+    .badge-item { background:#2d1a5e; color:#e2c9ff; font-size:11px; padding:5px 12px; border-radius:20px; border:1px solid #5a3090; }
+    .game-area { background:#140830; border:1px solid #4a2580; border-radius:14px; padding:16px; margin-top:4px; }
+    .game-area h3 { color:#ffd700; font-size:13px; text-align:center; margin-bottom:12px; }
+    .cards-row { display:flex; gap:10px; justify-content:center; }
+    .card-item { width:90px; height:130px; perspective:600px; cursor:pointer; }
+    .card-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .6s; }
+    .card-item.flipped .card-inner { transform:rotateY(180deg); }
+    .card-face { position:absolute; width:100%; height:100%; backface-visibility:hidden; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:8px; }
+    .card-back { background:#2a1060; border:1.5px solid #6a30c0; color:#c9a0ff; font-size:26px; }
+    .card-front { background:linear-gradient(135deg,#ffd700,#ff9900); transform:rotateY(180deg); color:#3a1500; font-size:10px; font-weight:700; line-height:1.4; }
+    .card-front .item-emoji { font-size:22px; margin-bottom:4px; }
+    .game-hint { color:#8a6aaa; font-size:11px; text-align:center; margin-top:10px; }
+
+    /* API Key 오버레이 */
+    #apikey-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,2,15,0.97); display:flex; align-items:center; justify-content:center; z-index:100; }
+    .apikey-box { background:#0d0720; border:1px solid #4a2580; border-radius:20px; padding:36px 32px; width:380px; text-align:center; }
+    .apikey-box .logo { font-size:52px; margin-bottom:12px; }
+    .apikey-box h2 { color:#e2c9ff; font-size:20px; font-weight:700; margin-bottom:6px; }
+    .apikey-box p  { color:#8a6aaa; font-size:12px; margin-bottom:20px; line-height:1.6; }
+    .apikey-box input { width:100%; background:#1e0e45; border:1.5px solid #4a2580; border-radius:10px; padding:12px 16px; color:#e2c9ff; font-size:13px; outline:none; margin-bottom:12px; font-family:inherit; }
+    .apikey-box button { width:100%; background:#7c3aed; border:none; border-radius:10px; padding:13px; color:white; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+    .apikey-box button:hover { background:#9b59b6; }
+    .apikey-box .err { color:#ff6b6b; font-size:12px; margin-top:8px; display:none; }
+  </style>
+</head>
+<body>
+
+<!-- API Key 오버레이 - 항상 먼저 표시 -->
+<div id="apikey-overlay">
+  <div class="apikey-box">
+    <div class="logo">🔮</div>
+    <h2>오늘의 사주 뽑기</h2>
+    <p>이름과 생년월일을 입력하면<br>Gemini가 오늘의 운세와 행운 아이템을 알려드려요</p>
+    <input type="text" id="apikey-input" placeholder="Gemini API Key (AIza...)" onkeydown="if(event.key==='Enter')submitApiKey()"/>
+    <button onclick="submitApiKey()">✨ 시작하기</button>
+    <div class="err" id="apikey-err">⚠️ API Key를 입력해주세요!</div>
+  </div>
+</div>
+
+<!-- 메인 채팅 앱 -->
+<div id="app">
+  <div id="header">
+    <div class="avatar">🔮</div>
+    <div class="info">
+      <h2>사주봇</h2>
+      <p>오늘의 운세 · 행운 아이템 뽑기</p>
+    </div>
+    <div class="badge">AI 사주</div>
+  </div>
+  <div id="chat"></div>
+  <div id="input-area">
+    <input type="text" id="user-input" placeholder="메시지를 입력하세요..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+    <button id="send-btn" onclick="sendMsg()">➤</button>
+  </div>
+</div>
+
+<script>
+let GEMINI_KEY = "";
+let step = "name";
+let userInfo = { name:"", year:"", month:"", day:"", hour:"" };
+let waiting = false;
+let gameDone = false;
+
+function submitApiKey() {
+  let v = document.getElementById("apikey-input").value.trim();
+  if (!v) {
+    document.getElementById("apikey-err").style.display = "block";
+    return;
+  }
+  GEMINI_KEY = v;
+  document.getElementById("apikey-overlay").style.display = "none";
+  startChat();
+}
+
+function startChat() {
+  botMsg("안녕하세요! 🌟 저는 AI 사주봇이에요.<br>오늘의 운세와 행운 아이템을 알려드릴게요!<br><br>먼저 <b>이름</b>을 알려주세요 😊");
+}
+
+function sendMsg() {
+  if (waiting) return;
+  let inp = document.getElementById("user-input");
+  let val = inp.value.trim();
+  if (!val) return;
+  inp.value = "";
+  addMsg("user", val);
+  handleStep(val);
+}
+
+function handleStep(val) {
+  if (step === "name") {
+    userInfo.name = val; step = "year";
+    setTimeout(() => botMsg("반가워요, <b>" + val + "</b>님! 🎉<br><br>태어난 <b>연도</b>를 입력해주세요<br>예) 1998"), 400);
+  } else if (step === "year") {
+    if (isNaN(val) || val.length !== 4) { botMsg("⚠️ 연도는 숫자 4자리로 입력해주세요!<br>예) 1998"); return; }
+    userInfo.year = val; step = "month";
+    setTimeout(() => botMsg("태어난 <b>월</b>을 입력해주세요<br>예) 3"), 400);
+  } else if (step === "month") {
+    if (isNaN(val) || +val<1 || +val>12) { botMsg("⚠️ 월은 1~12 사이 숫자로 입력해주세요!"); return; }
+    userInfo.month = val; step = "day";
+    setTimeout(() => botMsg("태어난 <b>일</b>을 입력해주세요<br>예) 15"), 400);
+  } else if (step === "day") {
+    if (isNaN(val) || +val<1 || +val>31) { botMsg("⚠️ 일은 1~31 사이 숫자로 입력해주세요!"); return; }
+    userInfo.day = val; step = "hour";
+    setTimeout(() => botMsg("마지막으로 태어난 <b>시각</b>을 입력해주세요<br>(0~23시, 모르면 12 입력)"), 400);
+  } else if (step === "hour") {
+    if (isNaN(val) || +val<0 || +val>23) { botMsg("⚠️ 시각은 0~23 사이 숫자로 입력해주세요!"); return; }
+    userInfo.hour = val; step = "done";
+    setTimeout(() => {
+      botMsg("✨ 입력 완료!<br><br>🔮 <b>" + userInfo.name + "</b>님의 사주를 분석하고 있어요...<br>잠시만 기다려주세요!");
+      showTyping();
+      fetchFortune();
+    }, 400);
+  }
+}
+
+function fetchFortune() {
+  waiting = true;
+  document.getElementById("send-btn").disabled = true;
+  let today = new Date();
+  let todayStr = today.getFullYear()+"년 "+(today.getMonth()+1)+"월 "+today.getDate()+"일";
+  let prompt = `사용자 정보:
+- 이름: ${userInfo.name}
+- 생년월일: ${userInfo.year}년 ${userInfo.month}월 ${userInfo.day}일
+- 태어난 시각: ${userInfo.hour}시
+- 오늘 날짜: ${todayStr}
+
+위 정보를 기반으로 오늘의 운세를 MZ세대가 공감할 수 있는 트렌디하고 재미있는 말투로 분석해주세요.
+반드시 아래 JSON 형식으로만 응답하세요. JSON 외 텍스트 절대 금지:
+{
+  "한줄운세": "오늘을 한 문장으로 임팩트 있게",
+  "총운": "2문장",
+  "연애운": "2문장",
+  "재물운": "2문장",
+  "건강운": "2문장",
+  "행운색": "색상명",
+  "행운숫자": 숫자,
+  "행운아이템": ["이모지 아이템명: 한줄이유", "이모지 아이템명: 한줄이유", "이모지 아이템명: 한줄이유"]
+}`;
+
+  fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent", {
+    method:"POST",
+    headers:{"x-goog-api-key": GEMINI_KEY, "Content-Type":"application/json"},
+    body: JSON.stringify({ contents:[{ role:"user", parts:[{text:prompt}] }] })
+  })
+  .then(r => { if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+  .then(data => {
+    removeTyping();
+    let raw = data.candidates[0].content.parts[0].text;
+    let jsonStr = raw.replace(/```json/g,"").replace(/```/g,"").trim();
+    let d = JSON.parse(jsonStr);
+    showResult(d);
+    waiting = false;
+    document.getElementById("send-btn").disabled = false;
+  })
+  .catch(err => {
+    removeTyping();
+    botMsg("❌ 오류: " + err.message + "<br>API Key를 확인하고 새로고침해주세요.");
+    waiting = false;
+    document.getElementById("send-btn").disabled = false;
+  });
+}
+
+function showResult(d) {
+  let html = `<div class="result-card">
+    <div class="headline">✨ ${userInfo.name}님의 오늘 운세</div>
+    <div class="fortune-item"><div class="label">💫 한줄 운세</div><div class="content" style="color:#ffd700;font-style:italic">"${d.한줄운세}"</div></div>
+    <div class="fortune-item"><div class="label">🌟 총운</div><div class="content">${d.총운}</div></div>
+    <div class="fortune-item"><div class="label">💕 연애운</div><div class="content">${d.연애운}</div></div>
+    <div class="fortune-item"><div class="label">💰 재물운</div><div class="content">${d.재물운}</div></div>
+    <div class="fortune-item"><div class="label">💪 건강운</div><div class="content">${d.건강운}</div></div>
+    <div class="badges">
+      <span class="badge-item">🎨 행운색: ${d.행운색}</span>
+      <span class="badge-item">🔢 행운숫자: ${d.행운숫자}</span>
+    </div>
+  </div>`;
+  botMsgHTML(html);
+  setTimeout(() => {
+    botMsg("🎴 이제 행운 아이템 뽑기 미니게임을 해볼까요?<br>카드 3장 중 하나를 골라 오늘의 행운 아이템을 확인해보세요!");
+    setTimeout(() => showGame(d.행운아이템), 600);
+  }, 600);
+}
+
+function showGame(items) {
+  let emojis = ["🌟","💎","🍀"];
+  let cards = items.map((item,i) => `
+    <div class="card-item" id="card${i}" onclick="flipCard(${i})">
+      <div class="card-inner">
+        <div class="card-face card-back">${emojis[i]}<br><span style="font-size:10px;margin-top:4px;display:block">카드 ${i+1}</span></div>
+        <div class="card-face card-front"><div class="item-emoji">✨</div>${items[i]}</div>
+      </div>
+    </div>`).join("");
+  let html = `<div class="game-area">
+    <h3>🎴 오늘의 행운 아이템 뽑기</h3>
+    <div class="cards-row">${cards}</div>
+    <div class="game-hint" id="game-hint">카드 하나를 골라 탭하세요!</div>
+  </div>`;
+  botMsgHTML(html);
+  scrollToBottom();
+}
+
+function flipCard(idx) {
+  if (gameDone) return;
+  gameDone = true;
+  document.getElementById("card"+idx).classList.add("flipped");
+  setTimeout(() => {
+    for(let i=0;i<3;i++) document.getElementById("card"+i).classList.add("flipped");
+    document.getElementById("game-hint").textContent = "✨ 오늘의 행운 아이템이 공개되었어요!";
+    setTimeout(() => {
+      botMsg("🎉 오늘 하루 행운 아이템을 꼭 챙겨보세요!<br>좋은 일만 가득하길 바랍니다 🌟<br><br>다시 보고 싶으면 페이지를 새로고침해주세요 🔄");
+    }, 600);
+  }, 400);
+}
+
+function now() {
+  let d=new Date(); return d.getHours()+":"+(d.getMinutes()<10?"0":"")+d.getMinutes();
+}
+function addMsg(role, text) {
+  let chat = document.getElementById("chat");
+  let div = document.createElement("div");
+  div.className = "msg-row " + role;
+  if (role==="bot") {
+    div.innerHTML = `<div class="bubble-avatar">🔮</div><div><div class="time">${now()}</div><div class="bubble">${text}</div></div>`;
+  } else {
+    div.innerHTML = `<div><div class="time" style="text-align:right">${now()}</div><div class="bubble">${text}</div></div>`;
+  }
+  chat.appendChild(div);
+  scrollToBottom();
+}
+function botMsg(text) { addMsg("bot", text); }
+function botMsgHTML(html) {
+  let chat = document.getElementById("chat");
+  let div = document.createElement("div");
+  div.className = "msg-row bot";
+  div.innerHTML = `<div class="bubble-avatar">🔮</div><div><div class="time">${now()}</div>${html}</div>`;
+  chat.appendChild(div);
+  scrollToBottom();
+}
+function showTyping() {
+  let chat = document.getElementById("chat");
+  let div = document.createElement("div");
+  div.className = "msg-row bot typing"; div.id = "typing-indicator";
+  div.innerHTML = `<div class="bubble-avatar">🔮</div><div><div class="bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div></div>`;
+  chat.appendChild(div); scrollToBottom();
+}
+function removeTyping() { let el=document.getElementById("typing-indicator"); if(el) el.remove(); }
+function scrollToBottom() { let c=document.getElementById("chat"); setTimeout(()=>{ c.scrollTop=c.scrollHeight; },50); }
+</script>
+</body>
+</html>
