@@ -218,7 +218,7 @@
             <div class="card-text" id="r-money"></div>
           </div>
           <div class="fortune-card career">
-            <div class="card-label">📚 취업/학업운</div>
+            <div class="card-label">📚 학업운</div>
             <div class="card-text" id="r-career"></div>
           </div>
           <div class="fortune-card health">
@@ -331,7 +331,24 @@ const GAME_ITEMS   = [
   ["🔑","귀여운 키링","소중한 것을 지켜줘요"],
   ["🌸","밝은 색 파우치","설레는 하루의 시작"],
   ["⭐","반짝이는 액세서리","빛나는 하루가 될 거예요"],
-  ["🍀","네잎 클로버","오늘 행운이 따라다녀요"]
+  ["🍀","네잎 클로버","오늘 행운이 따라다녀요"] ["🐸","개구리 키링","금전운 상승!"],
+  ["🎀","리본 머리끈","연애운 상승!"],
+  ["💄","틴트","매력이 빛나는 하루"],
+  ["📱","산리오 폰케이스","SNS 운 상승"],
+  ["🧦","행운의 양말","시험운 증가"],
+  ["🍜","마라탕","강력한 추진력을 얻어요"],
+  ["🍫","가나초콜릿","달달한 일이 생겨요"],
+  ["🥐","크루아상","여유로운 하루를 보내게 돼요"],
+  ["☕","아이스 아메리카노","집중력 버프 획득"],
+  ["🍙","삼각김밥","소소한 행복을 발견해요"],
+  ["🎮","닌텐도 스위치","즐거운 일이 생겨요"],
+  ["📚","전공책","학업운 대폭 상승"],
+  ["🪞","손거울","자신감 상승"],
+  ["💍","반짝이 반지","인기운 상승"],
+  ["🐰","토끼 인형","귀인 등장 확률 증가"],
+  ["🧸","곰돌이 인형","포근한 하루"],
+  ["🕯️","양초","집중력 향상"],
+  ["🎂","생일 케이크","축하받을 일이 생겨요"]
 ];
 
 function pick(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
@@ -525,19 +542,56 @@ function setupGame() {
 }
 
 function flipGameCard(idx) {
-  if(gameDone) return;
+  if (gameDone) return;
+
   gameDone = true;
-  document.getElementById("gc"+idx).classList.add("flipped");
-  document.getElementById("game-hint").textContent = "✨ 오늘의 행운 아이템이 공개되었어요!";
-  setTimeout(()=>{
-    for(let i=0;i<3;i++) document.getElementById("gc"+i).classList.add("flipped");
+
+  document.getElementById("gc" + idx).classList.add("flipped");
+  document.getElementById("game-hint").textContent =
+    "✨ 오늘의 행운 아이템이 공개되었어요!";
+
+  setTimeout(() => {
+    for (let i = 0; i < 3; i++) {
+      document.getElementById("gc" + i).classList.add("flipped");
+    }
+
     let picked = window._gameItems[idx];
+
+    let searchUrl =
+      "https://search.shopping.naver.com/search/all?query=" +
+      encodeURIComponent(picked[1]);
+
     let msg = document.getElementById("game-result-msg");
-    msg.innerHTML = `오늘의 행운 아이템은<br><b style="font-size:18px">${picked[0]} ${picked[1]}</b>이에요!<br>${picked[2]}<br><br>오늘 하루도 행운이 가득하길 바랍니다 🍀`;
-    msg.style.display="block";
-    document.getElementById("retry-btn").style.display="block";
+
+    msg.innerHTML = `
+      오늘의 행운 아이템은<br>
+      <b style="font-size:18px">${picked[0]} ${picked[1]}</b>이에요!<br>
+      ${picked[2]}<br><br>
+
+      <button
+        onclick="window.open('${searchUrl}', '_blank')"
+        style="
+          background:#3dba6f;
+          color:white;
+          border:none;
+          border-radius:30px;
+          padding:10px 20px;
+          cursor:pointer;
+          font-size:14px;
+          font-weight:700;
+        "
+      >
+        🛒 이 아이템 쇼핑하기
+      </button>
+
+      <br><br>
+      오늘 하루도 행운이 FULL 충전되길 바라요🍀-!!
+    `;
+
+    msg.style.display = "block";
+    document.getElementById("retry-btn").style.display = "block";
     scrollToBottom();
-  },700);
+  }, 700);
 }
 
 // ── UI 헬퍼 ───────────────────────────────────────────────
